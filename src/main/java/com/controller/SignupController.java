@@ -14,8 +14,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Base64;
+
 import java.util.Random;
 
 @Controller
@@ -33,22 +32,38 @@ public class SignupController {
         }
 
         int generatedOTP = new Random().nextInt(900000) + 100000;
+        // OTP is valid for 5 minutes
+        long expiryTime = System.currentTimeMillis() + (30);
+
         session.setAttribute("otp", generatedOTP);
+        session.setAttribute("otpExpiry", expiryTime);
         session.setAttribute("mobile", mobile);
 
         System.out.println("Generated OTP: " + generatedOTP);
+
+        m.addAttribute("message", "OTP sent successfully! Valid for 30 sec.");
 
         return "otp";
     }
 
     @PostMapping("/verifyotp")
     public String verifyOtp(@RequestParam("otp") String enteredOtp, Model m, HttpSession session) {
-
+        // Validate OTP format
         if (!enteredOtp.matches("\\d{6}")) {
             m.addAttribute("error", "Invalid OTP. Please enter a 6-digit number.");
             return "otp";
         }
 
+        // Check if OTP has expired
+        long currentTime = System.currentTimeMillis() + (5*1000);
+        Long expiryTime = (Long) session.getAttribute("otpExpiry");
+
+        if (expiryTime == null || currentTime > expiryTime) {
+            m.addAttribute("error", "OTP has expired. Please generate a new one.");
+            return "signup"; // Redirect to signup page
+        }
+
+        // Verify OTP
         int otp = Integer.parseInt(enteredOtp);
         String mobile = (String) session.getAttribute("mobile");
 
